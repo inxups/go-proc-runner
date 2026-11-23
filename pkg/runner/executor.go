@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// go结构体(把零散，类型不同字段打包使用(访问，func返回值))
+// 被打包字段首字母大写可被外部访问(cmd/runner)，小写则只能内部包访问(cmd/runner)
 type ExecResult struct {
 	Stdout   string
 	Stderr   string
@@ -16,13 +18,18 @@ type ExecResult struct {
 	Err      error
 }
 
+// ...string 接受多个形参 args...拆包，切片展开
 func RunWithTimeOut(timeout time.Duration, name string, args ...string) ExecResult {
+	//:= 创建并使用变量
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	//defer cancel先别使用，return前再使用，写在这是放忘记和泄漏分支
+	//多个defer同stack，先进先出
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, name, args...)
 
 	var stdout, stderr bytes.Buffer
+	//&指针，cm.Stdout改变，var stdout也改
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
