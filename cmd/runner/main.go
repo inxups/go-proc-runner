@@ -1,24 +1,36 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/inxups/go-proc-runner/pkg/runner"
 )
 
 func main() {
-	var tasks []runner.Task
-	for i := 1; i <= 6; i++ {
-		if i == 3 {
-			tasks = append(tasks, runner.Task{
-				Timedout: 2 * time.Second,
-				Name:     "python3",
-				Args:     []string{"testdata/hang.py"},
-			})
-			continue
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+
+	go func() {
+		select {
+		case sig := <-sigCh:
+			fmt.Printf("\nReceived signal: %v, stop dispatching new tasks...\n", sig)
+			cancel()
+		case <-ctx.Done():
 		}
+	}()
+
+	var tasks []runner.Task
+	for i := 1; i <= 8; i++ {
 		tasks = append(tasks, runner.Task{
 			Timedout: 3 * time.Second,
 			Name:     "python3",
@@ -26,8 +38,9 @@ func main() {
 		})
 	}
 
+	fmt.Printf("Starting worker pool (pid: %v), plz Ctrl+C to stop... ", os.Getpid())
 	start := time.Now()
-	results := runner.RunWorkerPool(tasks, 2)
+	results := runner.RunWorkerPool(ctx, tasks, 2)
 	total := time.Since(start)
 
 	for i, res := range results {

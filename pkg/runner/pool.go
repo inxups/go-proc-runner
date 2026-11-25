@@ -1,6 +1,9 @@
 package runner
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 type job struct {
 	index int
@@ -12,7 +15,10 @@ type jobResult struct {
 	result ExecResult
 }
 
-func RunWorkerPool(tasks []Task, workerCount int) []ExecResult {
+func RunWorkerPool(ctx context.Context, tasks []Task, workerCount int) []ExecResult {
+	if len(tasks) == 0 {
+		return nil
+	}
 	if workerCount <= 0 {
 		workerCount = 1
 	}
@@ -20,7 +26,7 @@ func RunWorkerPool(tasks []Task, workerCount int) []ExecResult {
 		workerCount = len(tasks)
 	}
 
-	jobs := make(chan job, len(tasks))
+	jobs := make(chan job)
 	results := make(chan jobResult, len(tasks))
 
 	var wg sync.WaitGroup
@@ -39,20 +45,35 @@ func RunWorkerPool(tasks []Task, workerCount int) []ExecResult {
 		}()
 	}
 
-	for i, j := range tasks {
-		jobs <- job{
-			index: i,
-			task:  j,
+	go func() {
+		defer close(jobs)
+		for i, j := range tasks {
+			if ctx.Err() != nil {
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case jobs <- job{index: i, task: j}:
+			}
 		}
-	}
-	close(jobs)
+	}()
 
 	wg.Wait()
 	close(results)
 
 	output := make([]ExecResult, len(tasks))
+	executed := make([]bool, len(tasks))
 	for r := range results {
 		output[r.index] = r.result
+		executed[r.index] = true
+	}
+
+	for o := range output {
+		if !executed[o] {
+			output[o].Err = ctx.Err()
+		}
 	}
 
 	return output
