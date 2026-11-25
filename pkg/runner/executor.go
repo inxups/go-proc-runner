@@ -15,13 +15,14 @@ type ExecResult struct {
 	Stderr   string
 	Duration time.Duration
 	TimedOut bool
+	Canceled bool
 	Err      error
 }
 
 // ...string 接受多个形参 args...拆包，切片展开
-func RunWithTimeOut(timeout time.Duration, name string, args ...string) ExecResult {
+func RunWithContext(patentCtx context.Context, timeout time.Duration, name string, args ...string) ExecResult {
 	//:= 创建并使用变量
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(patentCtx, timeout)
 	//defer cancel先别使用，return前再使用，写在这是放忘记和泄漏分支
 	//多个defer同stack，先进先出
 	defer cancel()
@@ -41,7 +42,12 @@ func RunWithTimeOut(timeout time.Duration, name string, args ...string) ExecResu
 		Stdout:   stdout.String(),
 		Stderr:   stderr.String(),
 		Duration: duration,
+		Canceled: errors.Is(ctx.Err(), context.Canceled),
 		TimedOut: errors.Is(ctx.Err(), context.DeadlineExceeded),
 		Err:      err,
 	}
+}
+
+func RunWithTimeOut(timedout time.Duration, name string, args ...string) ExecResult {
+	return RunWithContext(context.Background(), timedout, name, args...)
 }

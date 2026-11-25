@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
 
@@ -36,7 +37,7 @@ func RunWorkerPool(ctx context.Context, tasks []Task, workerCount int) []ExecRes
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
-				res := RunWithTimeOut(j.task.Timedout, j.task.Name, j.task.Args...)
+				res := RunWithContext(ctx, j.task.Timedout, j.task.Name, j.task.Args...)
 				results <- jobResult{
 					index:  j.index,
 					result: res,
@@ -73,6 +74,8 @@ func RunWorkerPool(ctx context.Context, tasks []Task, workerCount int) []ExecRes
 	for o := range output {
 		if !executed[o] {
 			output[o].Err = ctx.Err()
+			output[o].Canceled = errors.Is(ctx.Err(), context.Canceled)
+			output[o].TimedOut = errors.Is(ctx.Err(), context.DeadlineExceeded)
 		}
 	}
 
