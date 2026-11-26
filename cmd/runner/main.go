@@ -12,8 +12,8 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	sigCtx, sigCancel := context.WithCancel(context.Background())
+	defer sigCancel()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -23,10 +23,13 @@ func main() {
 		select {
 		case sig := <-sigCh:
 			fmt.Printf("\nReceived signal: %v, stop dispatching new tasks...\n", sig)
-			cancel()
-		case <-ctx.Done():
+			sigCancel()
+		case <-sigCtx.Done():
 		}
 	}()
+
+	globalCtx, globalCancel := context.WithTimeout(sigCtx, 4*time.Second)
+	defer globalCancel()
 
 	tasks := []runner.Task{
 		{Timedout: 3 * time.Second, Name: "python3", Args: []string{"testdata/work.py", "1"}},
@@ -37,9 +40,12 @@ func main() {
 		{Timedout: 3 * time.Second, Name: "python3", Args: []string{"testdata/work.py", "6"}}, // 测未派发被取消
 	}
 
-	fmt.Printf("Starting worker pool (pid: %v). Wait ～3s then run: kill -TERM %d\n ", os.Getpid(), os.Getpid())
+	options := runner.PoolOptions{
+		FailFast:    true,
+		WorkerCount: 2,
+	}
 	start := time.Now()
-	results := runner.RunWorkerPool(ctx, tasks, 2)
+	results := runner.RunWorkerPool(globalCtx, tasks, options)
 	total := time.Since(start)
 
 	for i, res := range results {
