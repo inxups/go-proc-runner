@@ -50,7 +50,7 @@ func main() {
 
 	for i, res := range results {
 		fmt.Printf("Task: %v | Duration: %v | Timedout: %v | Canceled: %v | Err: %v\n",
-			i+1, res.Duration.Round(time.Millisecond), res.TimedOut, res.Canceled, res.Err)
+			i+1, res.Duration.Round(time.Millisecond), res.Timedout, res.Canceled, res.Err)
 	}
 
 	fmt.Printf("Total duration: %v\n", total.Round(time.Millisecond))

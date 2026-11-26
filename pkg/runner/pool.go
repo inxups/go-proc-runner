@@ -88,7 +88,7 @@ func RunWorkerPool(ctx context.Context, tasks []Task, options PoolOptions) []Exe
 		if !executed[o] {
 			output[o].Err = poolCtx.Err()
 			output[o].Canceled = errors.Is(poolCtx.Err(), context.Canceled)
-			output[o].TimedOut = errors.Is(poolCtx.Err(), context.DeadlineExceeded)
+			output[o].Timedout = errors.Is(poolCtx.Err(), context.DeadlineExceeded)
 		}
 	}
 

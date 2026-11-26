@@ -14,7 +14,7 @@ type ExecResult struct {
 	Stdout   string
 	Stderr   string
 	Duration time.Duration
-	TimedOut bool
+	Timedout bool
 	Canceled bool
 	Err      error
 }
@@ -43,7 +43,7 @@ func RunWithContext(patentCtx context.Context, timeout time.Duration, name strin
 		Stderr:   stderr.String(),
 		Duration: duration,
 		Canceled: errors.Is(ctx.Err(), context.Canceled),
-		TimedOut: errors.Is(ctx.Err(), context.DeadlineExceeded),
+		Timedout: errors.Is(ctx.Err(), context.DeadlineExceeded),
 		Err:      err,
 	}
 }
